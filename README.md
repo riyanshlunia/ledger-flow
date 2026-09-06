@@ -55,5 +55,3 @@ LedgerFlow is composed of two primary services:
 LedgerFlow is built with strict corporate compliance in mind. All forecast and reconciliation decisions are logged via an immutable audit trail, ensuring that every automated action is traceable and justifiable.
 
 ---
-
-*For support or internal queries, please contact the Finance Engineering team.*
