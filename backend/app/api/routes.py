@@ -1,9 +1,12 @@
 """
 API Routes — Reconciliation, Forecasts, Scenarios, Escalations, Audit, Dashboard.
 """
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
+import csv
+import hashlib
+import io
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, File, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import func, and_
 
@@ -16,7 +19,7 @@ from app.models.models import (
 from app.api.schemas import (
     ReconciliationMatchOut, ReconciliationListOut, ReconciliationExplainOut,
     ReviewDecisionIn,
-    ForecastListOut, ForecastBucketOut, ForecastDriversOut, ForecastExplainOut,
+    ForecastListOut, ForecastBucketOut, ForecastDriversOut, ForecastDriverOut, ForecastExplainOut,
     ScenarioOut, ScenarioCreateIn, ScenarioDeltaOut, ScenarioDeltaBucket,
     EscalationOut, EscalationDecisionIn, EscalationListOut,
     AuditLogOut, AuditListOut,
@@ -29,6 +32,76 @@ from app.agents.governance_agent import GovernanceAgent
 router = APIRouter()
 
 DEFAULT_ENTITY = "ENTITY-US-001"
+
+
+@router.post("/transactions/import", tags=["Transactions"])
+async def import_transactions(
+    file: UploadFile = File(...),
+    entity_id: str = Query(DEFAULT_ENTITY),
+    db: Session = Depends(get_db),
+):
+    """Import bank transactions from a CSV and report row-level results."""
+    if not file.filename or not file.filename.lower().endswith(".csv"):
+        raise HTTPException(400, "Please upload a CSV file")
+
+    account = db.query(BankAccount).filter_by(entity_id=entity_id, is_active=True).first()
+    if not account:
+        raise HTTPException(404, "No active bank account found for this entity")
+
+    raw = await file.read()
+    try:
+        rows = csv.DictReader(io.StringIO(raw.decode("utf-8-sig")))
+    except UnicodeDecodeError as exc:
+        raise HTTPException(400, "CSV must be UTF-8 encoded") from exc
+
+    required = {"source_tx_id", "date", "amount", "currency", "direction"}
+    headers = {header.strip() for header in (rows.fieldnames or []) if header}
+    missing = required - headers
+    if missing:
+        raise HTTPException(400, f"Missing required columns: {', '.join(sorted(missing))}")
+
+    imported = 0
+    skipped = 0
+    invalid = []
+    for row_number, row in enumerate(rows, start=2):
+        try:
+            source_tx_id = (row.get("source_tx_id") or "").strip()
+            tx_date = date.fromisoformat((row.get("date") or "").strip())
+            amount = round(float((row.get("amount") or "").strip()), 2)
+            currency = (row.get("currency") or "USD").strip().upper()[:3]
+            direction = (row.get("direction") or "CREDIT").strip().upper()
+            if not source_tx_id or amount < 0 or direction not in {"CREDIT", "DEBIT"}:
+                raise ValueError("source_tx_id, amount, or direction is invalid")
+        except (TypeError, ValueError) as exc:
+            invalid.append({"row": row_number, "reason": str(exc)})
+            continue
+
+        fingerprint = hashlib.sha256(
+            f"{account.id}:{source_tx_id}:{tx_date}:{amount:.2f}".encode()
+        ).hexdigest()
+        if db.query(BankTransaction).filter_by(fingerprint=fingerprint).first():
+            skipped += 1
+            continue
+
+        db.add(BankTransaction(
+            bank_account_id=account.id,
+            source_tx_id=source_tx_id,
+            fingerprint=fingerprint,
+            value_date=tx_date,
+            booking_date=tx_date,
+            amount=amount,
+            currency=currency,
+            direction=direction,
+            counterparty_name=(row.get("counterparty_name") or "").strip() or None,
+            reference=(row.get("reference") or "").strip() or None,
+            description=(row.get("description") or "").strip() or None,
+            transaction_type="PAYMENT",
+            source_format="CSV",
+        ))
+        imported += 1
+
+    db.commit()
+    return {"filename": file.filename, "imported": imported, "skipped": skipped, "invalid": invalid}
 
 
 # ─────────────────────────────────────────────────────────────────────────────

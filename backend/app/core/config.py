@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 480
     environment: str = "development"
     log_level: str = "INFO"
+    cors_origins: str = "http://localhost:3000"
 
     class Config:
         env_file = ".env"

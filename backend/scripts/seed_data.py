@@ -52,6 +52,11 @@ def seed(db: Session):
     print("🌱 Creating tables...")
     Base.metadata.create_all(bind=engine)
 
+    # The demo dataset is deterministic; do not duplicate it on container restarts.
+    if db.query(BankTransaction).filter_by(source_tx_id="BTX-HIST-0000").first():
+        print("Database already contains demo data; skipping seed inserts.")
+        return
+
     print("🏢 Seeding entity...")
     entity = Entity(
         id="ENTITY-US-001",

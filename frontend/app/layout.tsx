@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "LedgerFlow Agent — Autonomous Financial Operations",
+  title: "LedgerFlow | Finance Operations Control",
   description:
-    "AI-powered autonomous reconciliation, explainable cash flow forecasting, governance and immutable audit trail.",
+    "A finance operations workspace for reconciliation, cash forecasting, approvals and audit-ready decisions.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

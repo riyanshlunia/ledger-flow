@@ -8,6 +8,7 @@ from loguru import logger
 from app.api.routes import router
 from app.db.session import engine
 from app.models.models import Base
+from app.core.config import get_settings
 
 # Create tables on startup (for development; use Alembic in production)
 Base.metadata.create_all(bind=engine)
@@ -23,9 +24,11 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+settings = get_settings()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Tighten in production with specific origins
+    allow_origins=[origin.strip() for origin in settings.cors_origins.split(",") if origin.strip()],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
