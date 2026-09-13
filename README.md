@@ -58,6 +58,8 @@ LedgerFlow is built with strict corporate compliance in mind. All forecast and r
 
 The frontend is deployment-ready for Vercel and the FastAPI service can run on any Python host that supports a web service (for example, Render's free tier where available). The database should use a managed PostgreSQL provider rather than the local Docker volume.
 
+This repository includes `render.yaml` with the correct backend root directory, health check, CORS origin, and production start command. Use **New > Blueprint** in Render to apply it, or update an existing service to match it.
+
 1. Deploy `frontend/` as a Next.js project on Vercel and set `NEXT_PUBLIC_API_URL` to the deployed API URL ending in `/v1`.
 2. Deploy `backend/` as a Python web service with build command `pip install -r requirements.txt` and start command `sh scripts/startup.sh`. The script seeds the demo data, runs the agents, and binds to the host-provided `$PORT`.
 3. Set `DATABASE_URL`, `REDIS_URL`, `SECRET_KEY`, `ENVIRONMENT=production`, and `CORS_ORIGINS` on the backend. Set `CORS_ORIGINS` to the exact Vercel origin, for example `https://ledgerflow-demo.vercel.app`.
