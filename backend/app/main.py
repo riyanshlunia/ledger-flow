@@ -7,7 +7,9 @@ from loguru import logger
 
 from app.api.routes import router
 from app.db.session import engine
+from app.db.session import SessionLocal
 from app.models.models import Base
+from app.models.models import Entity
 from app.core.config import get_settings
 
 # Create tables on startup (for development; use Alembic in production)
@@ -54,3 +56,12 @@ def health_check():
 @app.on_event("startup")
 async def startup_event():
     logger.info("LedgerFlow Agent API starting up...")
+    db = SessionLocal()
+    try:
+        if not db.query(Entity).filter_by(id="ENTITY-US-001").first():
+            logger.info("Demo entity not found; running initial data seed...")
+            from scripts.seed_data import seed
+            seed(db)
+            logger.info("Initial data seed complete.")
+    finally:
+        db.close()
