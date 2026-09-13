@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 480
     environment: str = "development"
     log_level: str = "INFO"
-    cors_origins: str = "http://localhost:3000"
+    cors_origins: str = "http://localhost:3000,https://ledgerflow-riyansh.vercel.app"
 
     class Config:
         env_file = ".env"

@@ -3,7 +3,12 @@
  * Typed fetch layer for all backend endpoints.
  */
 
-const BASE = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/v1").replace(/\/$/, "");
+const BASE = (
+  process.env.NEXT_PUBLIC_API_URL ||
+  (process.env.NODE_ENV === "production"
+    ? "https://ledger-flow-f0s5.onrender.com/v1"
+    : "http://localhost:8000/v1")
+).replace(/\/$/, "");
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
